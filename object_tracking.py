@@ -1,3 +1,18 @@
+# coding: utf-8
+# =====================================================================
+#  Filename:    object_tracking.py
+#
+#  py Ver:      python 3.6 or later
+#
+#  Description: Recognizes regions of text in a given image
+#
+#  Usage: python object_detection.py
+#         or
+#         python object_detection.py --video test.mov
+#
+#  Author: Ankit Saxena (ankch24@gmail.com)
+# =====================================================================
+
 import numpy as np
 import argparse
 import cv2
