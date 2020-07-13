@@ -17,12 +17,54 @@ def select_roi(event, x, y, flags, param):
         cv2.imshow("frame", frame)
 
 
+def get_arguments():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-v", "--video", help='path to optional video file')
+    args = vars(ap.parse_args())
+
+    return args
+
+
+def apply_camshift(roi_box, termination, roi_hist):
+    global frame, roi_points, input_mode
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    back_projection = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1)
+
+    r, roi_box = cv2.CamShift(back_projection, roi_box, termination)
+    points = np.int0(cv2.boxPoints(r))
+    cv2.polylines(frame, [points], True, (0, 255, 0), 2)
+
+
+def frame_roi():
+
+    global frame, roi_points, input_mode
+
+    input_mode = True
+    orig_frame = frame.copy()
+
+    while len(roi_points) < 4:
+        cv2.imshow("frame", frame)
+        cv2.waitKey(0)
+
+    roi_points = np.array(roi_points)
+    s = roi_points.sum(axis=1)
+    top_left = roi_points[np.argmin(s)]
+    bottom_right = roi_points[np.argmax(s)]
+
+    roi = orig_frame[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+    roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+    roi_hist = cv2.calcHist([roi], [0], None, [16], [0, 180])
+    roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+    roi_box = (top_left[0], top_left[1], bottom_right[0], bottom_right[1])
+
+    return roi_hist, roi_box
+
+
 def main():
 
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-v", "--video",
-                    help="path to the (optional) video file")
-    args = vars(ap.parse_args())
+    args = get_arguments()
 
     global frame, roi_points, input_mode
 
@@ -46,36 +88,13 @@ def main():
             break
 
         if roi_box is not None:
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            back_proj = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1)
-
-            r, roi_box = cv2.CamShift(back_proj, roi_box, termination)
-            pts = np.int0(cv2.boxPoints(r))
-            cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+            apply_camshift(roi_box, termination, roi_hist)
 
         cv2.imshow("frame", frame)
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord("i") and len(roi_points) < 4:
-
-            input_mode = True
-            orig_frame = frame.copy()
-
-            while len(roi_points) < 4:
-                cv2.imshow("frame", frame)
-                cv2.waitKey(0)
-
-            roi_points = np.array(roi_points)
-            s = roi_points.sum(axis=1)
-            top_left = roi_points[np.argmin(s)]
-            bottom_right = roi_points[np.argmax(s)]
-
-            roi = orig_frame[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
-            roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-
-            roi_hist = cv2.calcHist([roi], [0], None, [16], [0, 180])
-            roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
-            roi_box = (top_left[0], top_left[1], bottom_right[0], bottom_right[1])
+            roi_hist, roi_box = frame_roi()
 
         elif key == ord("q"):
             break
